@@ -1,9 +1,4 @@
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-#include "cache.h"
+#include "request.h"
 
 char * get_request(cache_t c, char *buff){
 	uint32_t size;

@@ -8,6 +8,7 @@ SOURCE = source/
 
 TEST_FILES = test_src/basic_test.c test_src/lrutests.c test_src/main.c test_src/test.c test_src/test_helper.c test_src/testing_client.c
 # TEST_FILES = test_src/testing_client.c
+SERVER_FILES = source/lru.c source/cache.c source/server.c source/tcp.c source/request.c
 
 RM = rm -rf
 
@@ -18,15 +19,13 @@ all:
 	make maketestclient
 
 makeserver: 
-	$(CC) $(CFLAGS) $(SOURCE)lru.c $(SOURCE)cache.c $(SOURCE)server.c -o out/server
+	$(CC) $(CFLAGS) $(SERVER_FILES) -o out/server
 
 makedirectclient:
 	$(CC) $(CFLAGS) $(SOURCE)direct_client.c -o out/dir_client
 
 maketestclient:
 	$(CC) $(CFLAGS) $(TEST_FILES) -o out/test_client
-	# $(CC) $(CFLAGS) $(SOURCE)testing_client.c -o out/test_client
-	# $(CC) $(CFLAGS) $(TEST_FILES) $(SOURCE)testing_client.c -o out/test_client
 
 runserver: out/server
 	./out/server $(ARG)

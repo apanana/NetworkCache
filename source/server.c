@@ -1,4 +1,3 @@
-#include "request.c"
 #include <stdbool.h>
 // Parsing command line inputs
 #include <unistd.h>
@@ -12,42 +11,11 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
+#include "tcp.h"
+
 #define BACKLOG 10
 #define BUFFSIZE 100
 
-int setup_tcp(char * TCPPORT){
-	int tcp_fd;
-	struct addrinfo hints, *servinfo, *p;
-	memset(&hints, 0, sizeof(hints)); // clear out hints
-	hints.ai_family = AF_UNSPEC; // unspecified IPv4 or IPv6
-	hints.ai_socktype = SOCK_STREAM; // TCP
-	hints.ai_flags = AI_PASSIVE; // use my IP
-
-	if (getaddrinfo(NULL,TCPPORT,&hints,&servinfo) != 0){
-		printf("getaddrinfo error\n");
-		return 1;
-	}
-    if ((tcp_fd = socket(servinfo->ai_family, servinfo->ai_socktype,servinfo->ai_protocol)) == -1) {
-		printf("socket error\n");
-		return 1;
-	}
-	//Reuse an old socket
-	int yes = 1;
-    if (setsockopt(tcp_fd, SOL_SOCKET, SO_REUSEADDR, &yes,sizeof(int)) == -1) {
-        printf("setsockopt error\n");
-	}
-    if (bind(tcp_fd, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-		close(tcp_fd);
-		printf("bind error\n");
-		return 1;
-	}
-	freeaddrinfo(servinfo); // Don't need this anymore 
-    if (listen(tcp_fd, BACKLOG) == -1) {
-        printf("listen error\n");        
-        return 1;
-    }
-	return tcp_fd;
-}
 
 int setup_udp(char * UDPPORT){
 	int udp_fd;
@@ -122,7 +90,7 @@ int main(int argc, char *argv[]){
 
     ////////////////////////////////////////////////////////////////////////
 	// Getting server ready for a connection
-	int newfd, rec_len;
+	int newfd;
 	struct sockaddr_storage ext_addr;
 	socklen_t sin_size;
 	char s[INET6_ADDRSTRLEN];
@@ -132,97 +100,67 @@ int main(int argc, char *argv[]){
 	int fdmax = udp_fd < tcp_fd ? tcp_fd : udp_fd;
 	int ret = 0;
 
-	char * buffer[BUFFSIZE];
-	char * out[BUFFSIZE];
+
 	sin_size = sizeof(ext_addr);
 	bool cont;
+	cache_t c = create_cache(MAXMEM,NULL);
 
 	////////////////////////////////////////////////////////////////////////
 	// Loop maintains connection until it receives a "POST /shutdown" request.
 	while (true){
-		cont = true;
-		cache_t c = create_cache(MAXMEM,NULL);
 		printf("server: waiting for a connection...\n");
-		while(cont){
-
-			FD_SET(tcp_fd, &readfds);
-			FD_SET(udp_fd, &readfds);
-			if ( (ret = select(fdmax+1, &readfds, NULL, NULL, NULL)) == -1)
-			{
-			  printf("Select Error.\n");
-			  exit(1);
+		FD_SET(tcp_fd, &readfds);
+		FD_SET(udp_fd, &readfds);
+		if ( (ret = select(fdmax+1, &readfds, NULL, NULL, NULL)) == -1)
+		{
+		  printf("Select Error.\n");
+		  exit(1);
+		}
+		/*
+		if(FD_ISSET(udp_fd,&readfds))
+		{
+			memset(buffer, '\0', sizeof(buffer));
+			if ((rec_len =recvfrom(newfd, buffer, BUFFSIZE-1, 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1){
+				printf("receive error\n");
+				close(newfd);
+				return 1;
 			}
-			/*
-			if(FD_ISSET(udp_fd,&readfds))
-			{
-				memset(buffer, '\0', sizeof(buffer));
-				if ((rec_len =recvfrom(newfd, buffer, BUFFSIZE-1, 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1){
-					printf("receive error\n");
-					close(newfd);
-					return 1;
-				}
-				inet_ntop(ext_addr.ss_family, &(((struct sockaddr_in*)&ext_addr)->sin_addr), s, sizeof s);
-				printf("server: got connection from %s\n", s);
+			inet_ntop(ext_addr.ss_family, &(((struct sockaddr_in*)&ext_addr)->sin_addr), s, sizeof s);
+			printf("server: got connection from %s\n", s);
 
-				buffer[rec_len] = '\0';
-				printf("Recieved request: %s\n",buffer);
-				strcpy(out,process_request(&c,buffer,rec_len));// need a better way of doing this lol
-				printf("Sending response: %s\n",out);
+			buffer[rec_len] = '\0';
+			printf("Recieved request: %s\n",buffer);
+			strcpy(out,process_request(&c,buffer,rec_len));// need a better way of doing this lol
+			printf("Sending response: %s\n",out);
 
-		        if (send(newfd, out, strlen(out), 0) == -1){
-					printf("send error\n");
+	        if (send(newfd, out, strlen(out), 0) == -1){
+				printf("send error\n");
+	            close(newfd);
+	            return 1;
+		        }
+
+			if(strcmp(out,"204 No Content: Shutting down")==0){//shutdown
+		        if (send(newfd, "Closing connection!\n", 20, 0) == -1){
+		            printf("send error\n");
 		            close(newfd);
 		            return 1;
-			        }
-
-				if(strcmp(out,"204 No Content: Shutting down")==0){//shutdown
-			        if (send(newfd, "Closing connection!\n", 20, 0) == -1){
-			            printf("send error\n");
-			            close(newfd);
-			            return 1;
-			        }
-					cont = false;
-				}
-				close(newfd);
+		        }
+				cont = false;
 			}
-			*/
-			if(FD_ISSET(tcp_fd, &readfds))
-			{
-				if ((newfd = accept(tcp_fd, (struct sockaddr *)&ext_addr, &sin_size)) == -1){
-					printf("accept error\n");
-					return 1;
-				}
-				inet_ntop(ext_addr.ss_family, &(((struct sockaddr_in*)&ext_addr)->sin_addr), s, sizeof s);
-				printf("server: got connection from %s\n", s);
-
-				memset(buffer, '\0', sizeof(buffer));
-				if ((rec_len =recv(newfd, buffer, BUFFSIZE-1, 0)) == -1){
-					printf("receive error\n");
-					close(newfd);
-					return 1;
-				}
-				buffer[rec_len] = '\0';
-				printf("Recieved request: %s\n",buffer);
-				strcpy(out,process_request(&c,buffer,rec_len));// need a better way of doing this lol
-				printf("Sending response: %s\n",out);
-
-		        if (send(newfd, out, strlen(out), 0) == -1){
-					printf("send error\n");
-		            close(newfd);
-		            return 1;
-			        }
-
-				if(strcmp(out,"204 No Content: Shutting down")==0){//shutdown
-			        if (send(newfd, "Closing connection!\n", 20, 0) == -1){
-			            printf("send error\n");
-			            close(newfd);
-			            return 1;
-			        }
-					cont = false;
-				}
-				close(newfd);
+			close(newfd);
+		}
+		*/
+		if(FD_ISSET(tcp_fd, &readfds))
+		{
+			if ((newfd = accept(tcp_fd, (struct sockaddr *)&ext_addr, &sin_size)) == -1){
+				printf("accept error\n");
+				return 1;
 			}
-			FD_ZERO(&readfds);
+			inet_ntop(ext_addr.ss_family, &(((struct sockaddr_in*)&ext_addr)->sin_addr), s, sizeof s);
+			printf("server: got connection from %s\n", s);
+
+			ftp_request(newfd,&c);
+			close(newfd);
 		}
 	}
 	return 0;
