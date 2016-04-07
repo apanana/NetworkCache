@@ -34,7 +34,7 @@ int setup_tcp(char * TCPPORT){
 	return tcp_fd;
 }
 
-void ftp_request(int newfd, cache_t *c){
+void tcp_request(int newfd, cache_t *c){
 	int rec_len;
 	char * buffer[BUFFSIZE];
 	char * out[BUFFSIZE];
