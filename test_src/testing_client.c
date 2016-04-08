@@ -16,20 +16,23 @@
 
 #define BUFFSIZE 1000 // max number of bytes we can get at once
 
-char * PORT = "3490";
+char * TCPPORT = "3490";
+char * UDPPORT = "5490";
 char * HOST = NULL;
 
 struct cache_obj{
     char * host;
-    char * port;
-    struct addrinfo * servinfo;
+    char * tcpport;
+    char * udpport;
+    struct addrinfo * tcpservinfo;
+    struct addrinfo * udpservinfo;
 };
 
-int connect_server(cache_t cache){
+int connect_tcp_server(cache_t cache){
     int sockfd;
     struct addrinfo *p;
     char s[INET6_ADDRSTRLEN];
-    for(p = cache->servinfo; p != NULL; p = p->ai_next) {
+    for(p = cache->tcpservinfo; p != NULL; p = p->ai_next) {
         if ((sockfd = socket(p->ai_family, p->ai_socktype,p->ai_protocol)) == -1) {
             perror("client: socket");
             continue;
@@ -96,25 +99,38 @@ uint64_t size_from_head(char * head){
 
 cache_t create_cache(uint64_t maxmem, hash_func hash){
     cache_t c = calloc(1,sizeof(struct cache_obj));
-    extern char * PORT;
+    extern char * TCPPORT;
     extern char * HOST;
+    extern char * UDPPORT;
     c->host = HOST;
-    c->port = PORT;
-    c->servinfo = calloc(1,sizeof(struct addrinfo));
-    // Getting address info and setting it into c->servinfo
+    c->tcpport = TCPPORT;
+    c->udpport = UDPPORT;
+    c->tcpservinfo = calloc(1,sizeof(struct addrinfo));
+    c->udpservinfo = calloc(1,sizeof(struct addrinfo));
+    // Getting address info and setting it into c->tcpservinfo
     struct addrinfo hints;
+    int status;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM; // UDP socket
+    if ((status = getaddrinfo(c->host, c->tcpport, &hints, &c->udpservinfo)) != 0) {
+        free(c->udpservinfo);
+        free(c);
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        exit(1);
+    }
+
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM; // TCP socket
-    int status;
-    if ((status = getaddrinfo(c->host, c->port, &hints, &c->servinfo)) != 0) {
-        free(c->servinfo);
+    if ((status = getaddrinfo(c->host, c->tcpport, &hints, &c->tcpservinfo)) != 0) {
+        free(c->tcpservinfo);
         free(c);
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(1);
     }
     //connecting to server and sending a request to POST /memsize/maxmem
-    int sockfd = connect_server(c);
+    int sockfd = connect_tcp_server(c);
     char* buf[BUFFSIZE];
     memset(&buf,'\0',sizeof(buf));
     sprintf(&buf,"POST /memsize/%u\n",maxmem);
@@ -126,11 +142,10 @@ cache_t create_cache(uint64_t maxmem, hash_func hash){
 }
 
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
-    int sockfd = connect_server(cache);
+    int sockfd = connect_tcp_server(cache);
     char* buf[BUFFSIZE];
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"PUT /%s/%s\n",key,val);
-    printf("BUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUFBUF\n%s\n",buf);
     char * buffer[BUFFSIZE];
     strcpy(buffer,send_rec(sockfd,buf));
 
@@ -138,7 +153,7 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
 }
 
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
-    int sockfd = connect_server(cache);
+    int sockfd = connect_tcp_server(cache);
     char* buf[BUFFSIZE];
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"GET /%s\n",key);
@@ -155,7 +170,7 @@ val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
 }
 
 void cache_delete(cache_t cache, key_type key){
-    int sockfd = connect_server(cache);
+    int sockfd = connect_tcp_server(cache);
     char* buf[BUFFSIZE];
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"DELETE /%s\n",key);
@@ -166,7 +181,7 @@ void cache_delete(cache_t cache, key_type key){
 }
 
 uint64_t cache_space_used(cache_t cache){
-    int sockfd = connect_server(cache);
+    int sockfd = connect_tcp_server(cache);
     char * buffer[BUFFSIZE];
     strcpy(buffer,send_rec(sockfd,"HEAD /k\n"));
     close(sockfd);
@@ -175,7 +190,7 @@ uint64_t cache_space_used(cache_t cache){
 }
 
 void destroy_cache(cache_t cache){
-    int sockfd = connect_server(cache);
+    int sockfd = connect_tcp_server(cache);
     char * buffer[BUFFSIZE];
     strcpy(buffer,send_rec(sockfd,"POST /shutdown\n"));
     close(sockfd);
