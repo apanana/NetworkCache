@@ -17,7 +17,7 @@
 #define BUFFSIZE 1000 // max number of bytes we can get at once
 
 char * TCPPORT = "3490";
-char * UDPPORT = "5490";
+char * UDPPORT = "4590";
 char * HOST = NULL;
 
 struct cache_obj{
@@ -91,18 +91,22 @@ char * send_rec_tcp(int sockfd, char* buf){
     return buffer;
 }
 
-char * send_rec_udp(int sockfd, char* buf){
+char * send_rec_udp(int sockfd, char* buf,cache_t cache){
+    struct addrinfo *p;
+    p = cache->udpservinfo;
     struct sockaddr_storage ext_addr;
     socklen_t sin_size = sizeof(ext_addr);
     int numbytes;
-    if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,(struct sockaddr_in*)&ext_addr,sin_size)) == -1) {
+    // if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,(struct sockaddr_in*)&ext_addr,sin_size)) == -1) {
+    if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,p->ai_addr,p->ai_addrlen)) == -1) {
         perror("");
         exit(1);
     }
     char * buffer[BUFFSIZE];
     int rec_len;
     memset(&buffer, '\0', sizeof(buffer));
-    if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1){
+    // if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1){
+    if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,p->ai_addr,&p->ai_addrlen)) == -1){
         printf("receive error\n");
         close(sockfd);
         exit(1);
@@ -198,7 +202,7 @@ val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"GET /%s\n",key);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec_udp(sockfd,buf));
+    strcpy(buffer,send_rec_udp(sockfd,buf,cache));
 
     // strcpy(buffer,send_rec_tcp(sockfd,buf));
 

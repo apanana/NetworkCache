@@ -54,8 +54,9 @@ char * memsize_request(cache_t *c,char* buff){
 	char *size[strlen(buff)+1];
 	strcpy(size,strtok(NULL,"/"));
 	int memsize = atoi(size);
-	cache_destroy(c);
-	*c = create_cache(memsize,NULL);
+	cache_destroy(*c);
+	cache_t new_c = create_cache(memsize,NULL);
+	*c = new_c;
 	return "204 No Content: Memory Resized\n";
 }
 
@@ -87,11 +88,9 @@ char * process_request(cache_t *c,char * buff_in,int len){
 			return shutdown_request(*c);
 		// POST /memsize/value
 		else if (strcmp("memsize",token)==0){
-			// printf("111111111POINTER %p\n",*c);
 			char * out[1000];
 			memset(out, '\0', sizeof(out));
 			strcpy(out,memsize_request(c,buffer));
-			// printf("2222222222POINTER %p\n",*c);
 			return out;
 		}
 

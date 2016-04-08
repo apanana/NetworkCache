@@ -101,7 +101,6 @@ int main(int argc, char *argv[]){
 			}
 			inet_ntop(ext_addr.ss_family, &(((struct sockaddr_in*)&ext_addr)->sin_addr), s, sizeof s);
 			printf("server: got connection from %s\n", s);
-
 			tcp_request(newfd,&c);
 			close(newfd);
 		}

@@ -35,6 +35,7 @@ void udp_request(int newfd, cache_t *c){
 	char * buffer[BUFFSIZE];
 	char * out[BUFFSIZE];
 	memset(buffer, '\0', sizeof(buffer));
+
 	if ((rec_len =recvfrom(newfd, buffer, BUFFSIZE-1, 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1){
 		printf("UDP receive error\n");
 		close(newfd);
@@ -48,9 +49,7 @@ void udp_request(int newfd, cache_t *c){
 		exit(0);
 	}
 
-	printf("UDP Recieved request: %s\n",buffer);
-	strcpy(out,process_request(&c,buffer,rec_len));// need a better way of doing this lol
-	printf("Sending response: %s\n",out);
+	strcpy(out,process_request(c,buffer,rec_len));// need a better way of doing this lol
 
     if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)&ext_addr,sin_size) == -1){
 		printf("send error\n");
@@ -65,6 +64,4 @@ void udp_request(int newfd, cache_t *c){
             exit(1);
         }
 	}
-
-	close(newfd);
 }

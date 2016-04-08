@@ -46,9 +46,7 @@ void tcp_request(int newfd, cache_t *c){
 	}
 	buffer[rec_len] = '\0';
 	printf("Recieved request: %s\n",buffer);
-	printf("THIS IS THE PRE-REQUEST POINTER %p\n\n\n",c);
 	strcpy(out,process_request(c,buffer,rec_len));// need a better way of doing this lol
-	printf("THIS IS THE POST-REQUEST POINTER %p\n\n\n",c);
 	printf("Sending response: %s\n",out);
 
     if (send(newfd, out, strlen(out), 0) == -1){
@@ -64,6 +62,5 @@ void tcp_request(int newfd, cache_t *c){
             exit(1);
         }
 	}
-	// return c;
 }
 	
