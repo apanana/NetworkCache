@@ -52,7 +52,7 @@ void udp_request(int newfd, cache_t *c){
 	strcpy(out,process_request(&c,buffer,rec_len));// need a better way of doing this lol
 	printf("Sending response: %s\n",out);
 
-    if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)&ext_addr,&sin_size) == -1){
+    if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)&ext_addr,sin_size) == -1){
 		printf("send error\n");
         close(newfd);
         exit(0);

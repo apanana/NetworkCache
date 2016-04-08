@@ -95,7 +95,7 @@ char * send_rec_udp(int sockfd, char* buf){
     struct sockaddr_storage ext_addr;
     socklen_t sin_size = sizeof(ext_addr);
     int numbytes;
-    if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1) {
+    if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,(struct sockaddr_in*)&ext_addr,sin_size)) == -1) {
         perror("");
         exit(1);
     }
@@ -153,19 +153,18 @@ cache_t create_cache(uint64_t maxmem, hash_func hash){
     int status;
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM; // UDP socket
-    if ((status = getaddrinfo(c->host, c->tcpport, &hints, &c->udpservinfo)) != 0) {
-        free(c->udpservinfo);
+    hints.ai_socktype = SOCK_STREAM; // TCP socket
+    if ((status = getaddrinfo(c->host, c->tcpport, &hints, &c->tcpservinfo)) != 0) {
+        free(c->tcpservinfo);
         free(c);
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(1);
     }
-
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM; // TCP socket
-    if ((status = getaddrinfo(c->host, c->tcpport, &hints, &c->tcpservinfo)) != 0) {
-        free(c->tcpservinfo);
+    hints.ai_socktype = SOCK_DGRAM; // UDP socket
+    if ((status = getaddrinfo(c->host, c->udpport, &hints, &c->udpservinfo)) != 0) {
+        free(c->udpservinfo);
         free(c);
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(1);
@@ -184,23 +183,24 @@ cache_t create_cache(uint64_t maxmem, hash_func hash){
 
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
     int sockfd = connect_tcp_server(cache);
-    // int sockfd = connect_udp_server(cache);
     char* buf[BUFFSIZE];
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"PUT /%s/%s\n",key,val);
     char * buffer[BUFFSIZE];
     strcpy(buffer,send_rec_tcp(sockfd,buf));
-    // strcpy(buffer,send_rec_tcp(sockfd,buf));
     close(sockfd);
 }
 
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
-    int sockfd = connect_tcp_server(cache);
+    int sockfd = connect_udp_server(cache);
+    // int sockfd = connect_tcp_server(cache);
     char* buf[BUFFSIZE];
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"GET /%s\n",key);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec_tcp(sockfd,buf));
+    strcpy(buffer,send_rec_udp(sockfd,buf));
+
+    // strcpy(buffer,send_rec_tcp(sockfd,buf));
 
     close(sockfd);
     if (strcmp(buffer,"404 Not Found!\n")==0){
