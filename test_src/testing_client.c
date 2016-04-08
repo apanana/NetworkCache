@@ -52,7 +52,27 @@ int connect_tcp_server(cache_t cache){
     return sockfd;
 }
 
-char * send_rec(int sockfd, char* buf){
+int connect_udp_server(cache_t cache){
+    int sockfd;
+    struct addrinfo *p;
+    char s[INET6_ADDRSTRLEN];
+    for(p = cache->udpservinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,p->ai_protocol)) == -1) {
+            perror("client: socket");
+            continue;
+        }
+    break; }
+    if (p == NULL) {
+        fprintf(stderr, "client: failed to connect\n");
+        return 2;
+    }
+    inet_ntop(p->ai_family, &(((struct sockaddr_in*)&p->ai_addr)->sin_addr), s, sizeof s);
+    printf("client: connecting to %s\n", s);
+    return sockfd; 
+}
+
+
+char * send_rec_tcp(int sockfd, char* buf){
     int numbytes;
     if ((numbytes = send(sockfd, buf, strlen(buf), 0)) == -1) {
         perror("");
@@ -62,6 +82,27 @@ char * send_rec(int sockfd, char* buf){
     int rec_len;
     memset(&buffer, '\0', sizeof(buffer));
     if ((rec_len =recv(sockfd, buffer, BUFFSIZE-1, 0)) == -1){
+        printf("receive error\n");
+        close(sockfd);
+        exit(1);
+    }
+    buffer[rec_len] = '\0';
+    printf("Recieved response: %s\n",buffer);
+    return buffer;
+}
+
+char * send_rec_udp(int sockfd, char* buf){
+    struct sockaddr_storage ext_addr;
+    socklen_t sin_size = sizeof(ext_addr);
+    int numbytes;
+    if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1) {
+        perror("");
+        exit(1);
+    }
+    char * buffer[BUFFSIZE];
+    int rec_len;
+    memset(&buffer, '\0', sizeof(buffer));
+    if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1){
         printf("receive error\n");
         close(sockfd);
         exit(1);
@@ -135,7 +176,7 @@ cache_t create_cache(uint64_t maxmem, hash_func hash){
     memset(&buf,'\0',sizeof(buf));
     sprintf(&buf,"POST /memsize/%u\n",maxmem);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec(sockfd,buf));
+    strcpy(buffer,send_rec_tcp(sockfd,buf));
     close(sockfd);
     printf("end %p\n",c);
     return c;
@@ -143,12 +184,13 @@ cache_t create_cache(uint64_t maxmem, hash_func hash){
 
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
     int sockfd = connect_tcp_server(cache);
+    // int sockfd = connect_udp_server(cache);
     char* buf[BUFFSIZE];
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"PUT /%s/%s\n",key,val);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec(sockfd,buf));
-
+    strcpy(buffer,send_rec_tcp(sockfd,buf));
+    // strcpy(buffer,send_rec_tcp(sockfd,buf));
     close(sockfd);
 }
 
@@ -158,7 +200,7 @@ val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"GET /%s\n",key);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec(sockfd,buf));
+    strcpy(buffer,send_rec_tcp(sockfd,buf));
 
     close(sockfd);
     if (strcmp(buffer,"404 Not Found!\n")==0){
@@ -175,7 +217,7 @@ void cache_delete(cache_t cache, key_type key){
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"DELETE /%s\n",key);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec(sockfd,buf));
+    strcpy(buffer,send_rec_tcp(sockfd,buf));
 
     close(sockfd);
 }
@@ -183,7 +225,7 @@ void cache_delete(cache_t cache, key_type key){
 uint64_t cache_space_used(cache_t cache){
     int sockfd = connect_tcp_server(cache);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec(sockfd,"HEAD /k\n"));
+    strcpy(buffer,send_rec_tcp(sockfd,"HEAD /k\n"));
     close(sockfd);
     uint64_t out = size_from_head(buffer);
     return out;
@@ -192,6 +234,6 @@ uint64_t cache_space_used(cache_t cache){
 void destroy_cache(cache_t cache){
     int sockfd = connect_tcp_server(cache);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec(sockfd,"POST /shutdown\n"));
+    strcpy(buffer,send_rec_tcp(sockfd,"POST /shutdown\n"));
     close(sockfd);
 }

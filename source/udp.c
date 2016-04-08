@@ -30,8 +30,7 @@ int setup_udp(char * UDPPORT){
 
 void udp_request(int newfd, cache_t *c){
 	struct sockaddr_storage ext_addr;
-	socklen_t sin_size;
-	sin_size = sizeof(ext_addr);
+	socklen_t sin_size = sizeof(ext_addr);
 	int rec_len;
 	char * buffer[BUFFSIZE];
 	char * out[BUFFSIZE];
@@ -53,7 +52,7 @@ void udp_request(int newfd, cache_t *c){
 	strcpy(out,process_request(&c,buffer,rec_len));// need a better way of doing this lol
 	printf("Sending response: %s\n",out);
 
-    if (send(newfd, out, strlen(out), 0) == -1){
+    if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)&ext_addr,&sin_size) == -1){
 		printf("send error\n");
         close(newfd);
         exit(0);
