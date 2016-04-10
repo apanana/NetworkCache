@@ -49,7 +49,7 @@ void udp_request(int newfd, cache_t *c){
 		exit(0);
 	}
 
-	strcpy(out,process_request(c,buffer,rec_len));// need a better way of doing this lol
+	strcpy(out,process_request(c,buffer));// need a better way of doing this lol
 
     if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)&ext_addr,sin_size) == -1){
 		printf("send error\n");
@@ -57,11 +57,4 @@ void udp_request(int newfd, cache_t *c){
         exit(0);
         }
 
-	if(strcmp(out,"204 No Content: Shutting down")==0){//shutdown
-        if (send(newfd, "Closing connection!\n", 20, 0) == -1){
-            printf("send error\n");
-            close(newfd);
-            exit(1);
-        }
-	}
 }

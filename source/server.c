@@ -18,12 +18,10 @@
 #define BUFFSIZE 100
 
 int main(int argc, char *argv[]){
-	////////////////////////////////////////////////////////////////////////
 	char * TCP = "3490";
 	char * UDP = "4590";
 	int MAXMEM = 1000;
-	bool SHUTDOWN = false;
-	bool INITIAL = true;
+	////////////////////////////////////////////////////////////////////////
 	// PARSING COMMAND LINE INPUTS
 	// Get maxmem and portnum from command line
 	char *ptr;
@@ -49,7 +47,7 @@ int main(int argc, char *argv[]){
 					fprintf (stderr,
 						"Unknown option character `\\x%x'.\n",
 						optopt);
-				return 1;
+				exit(1);
 		  	default:
 				abort();
 		}
@@ -57,9 +55,14 @@ int main(int argc, char *argv[]){
 	printf("Initial settings: maxmem = %d, TCP = %s, UDP = %s\n",MAXMEM,TCP,UDP);
 
 	////////////////////////////////////////////////////////////////////////
-	// SETTING UP OUR SERVER	
+	// SETTING UP OUR SOCKETS	
 	int tcp_fd = setup_tcp(TCP);
 	int udp_fd = setup_udp(UDP);
+
+	fd_set readfds;
+	FD_ZERO(&readfds);
+	int fdmax = udp_fd < tcp_fd ? tcp_fd : udp_fd;
+	int ret = 0;
 
     ////////////////////////////////////////////////////////////////////////
 	// Getting server ready for a connection
@@ -67,26 +70,19 @@ int main(int argc, char *argv[]){
 	struct sockaddr_storage ext_addr;
 	socklen_t sin_size;
 	char s[INET6_ADDRSTRLEN];
-
-	fd_set readfds;
-	FD_ZERO(&readfds);
-	int fdmax = udp_fd < tcp_fd ? tcp_fd : udp_fd;
-	int ret = 0;
-
-
 	sin_size = sizeof(ext_addr);
-	bool cont;
+
 	cache_t c = create_cache(MAXMEM,NULL);
 
 	////////////////////////////////////////////////////////////////////////
 	// Loop maintains connection until it receives a "POST /shutdown" request.
 	while (true){
-		printf("server: waiting for a connection...\n");
+		printf("Server: Waiting for a connection...\n");
 		FD_SET(tcp_fd, &readfds);
 		FD_SET(udp_fd, &readfds);
 		if ( (ret = select(fdmax+1, &readfds, NULL, NULL, NULL)) == -1)
 		{
-		  printf("Select Error.\n");
+		  printf("Select Error\n");
 		  exit(1);
 		}
 		if(FD_ISSET(udp_fd,&readfds))
@@ -96,11 +92,11 @@ int main(int argc, char *argv[]){
 		if(FD_ISSET(tcp_fd, &readfds))
 		{
 			if ((newfd = accept(tcp_fd, (struct sockaddr *)&ext_addr, &sin_size)) == -1){
-				printf("accept error\n");
-				return 1;
+				printf("Accept Error\n");
+				exit(1);
 			}
 			inet_ntop(ext_addr.ss_family, &(((struct sockaddr_in*)&ext_addr)->sin_addr), s, sizeof s);
-			printf("server: got connection from %s\n", s);
+			printf("Server: Got connection from %s\n", s);
 			tcp_request(newfd,&c);
 			close(newfd);
 		}

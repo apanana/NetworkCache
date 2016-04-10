@@ -13,7 +13,6 @@
 #include "request.h"
 #include "cache.h"
 
-#define BACKLOG 10
 #define BUFFSIZE 100
 
 int setup_tcp(char * TCPPORT);

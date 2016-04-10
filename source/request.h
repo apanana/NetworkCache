@@ -11,4 +11,4 @@ char * delete_request(cache_t c, char* buff);
 char * head_request(cache_t c);
 char * shutdown_request(cache_t c);
 char * memsize_request(cache_t *c,char* buff);
-char * process_request(cache_t *c,char * buff_in,int len);
+char * process_request(cache_t *c,char * buff_in);

@@ -47,7 +47,7 @@ char * head_request(cache_t c){
 
 char * shutdown_request(cache_t c){
 	cache_destroy(c);
-	return "204 No Content: Shutting down";
+	return "204 No Content: Shutting down\n";
 }
 
 char * memsize_request(cache_t *c,char* buff){
@@ -60,7 +60,7 @@ char * memsize_request(cache_t *c,char* buff){
 	return "204 No Content: Memory Resized\n";
 }
 
-char * process_request(cache_t *c,char * buff_in,int len){
+char * process_request(cache_t *c,char * buff_in){
 	char * buffer[strlen(buff_in)];
 	memset(buffer, '\0', sizeof(buffer));
 	strncpy(buffer,buff_in,(strlen(buff_in)-1));
