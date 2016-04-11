@@ -112,76 +112,6 @@ char * receive_udp(int newfd,struct sockaddr_storage * source){
 // 	// handles UDP request by receiving, processing, and then responding.
 // }
 
-// # include "udp.h"
-
-// int setup_udp(char * UDPPORT){
-// 	int udp_fd;
-// 	struct addrinfo hints, *servinfo, *p;
-// 	memset(&hints, 0, sizeof(hints)); // clear out hints
-// 	hints.ai_family = AF_UNSPEC; // unspecified IPv4 or IPv6
-// 	hints.ai_socktype = SOCK_DGRAM; // TCP
-// 	hints.ai_flags = AI_PASSIVE; // use my IP
-// 	if (getaddrinfo(NULL,UDPPORT,&hints,&servinfo) != 0){
-// 		printf("getaddrinfo error\n");
-// 		return 1;
-// 	}
-//     if ((udp_fd = socket(servinfo->ai_family, servinfo->ai_socktype,servinfo->ai_protocol)) == -1) {
-// 		printf("socket error\n");
-// 		return 1;
-// 	}
-// 	//Reuse an old socket
-// 	int yes = 1;
-//     if (setsockopt(udp_fd, SOL_SOCKET, SO_REUSEADDR, &yes,sizeof(int)) == -1) {
-//         printf("setsockopt error\n");
-// 	}
-//     if (bind(udp_fd, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-// 		close(udp_fd);
-// 		printf("bind error\n");
-// 		return 1;
-// 	}
-// 	return udp_fd;
-// }
-char* recvdgrams(int fd, struct sockaddr_storage *from)
-{
-  char buffer[MAXLINE] = {0};
-  char *response = calloc(MAXLINE,1);
-  uint32_t total = 0,
-    response_size = MAXLINE,
-    bytes = 0;
-  char *tmp;
-  int size = sizeof(*from);
-  do
-    {
-      memset(buffer,0,MAXLINE);
-      bytes = recvfrom(fd,buffer,MAXLINE,0,(struct sockaddr *)from, &size);
-      if(bytes == -1)
-        {
-          printf("Read failed\n");
-	  free(response);
-          return NULL;
-        }
-      if( total + bytes > response_size)
-        {
-          tmp = calloc(response_size*2,1);
-          if (tmp == NULL)
-            {
-              printf("Allocation failed, value too big\n");
-	      free(response);
-              return NULL;
-            }
-          memcpy(tmp,response,response_size);
-          free(response);
-          response = tmp;
-          response_size *= 2;
-        }
-      memcpy(response + total,buffer,bytes);
-      total += bytes;
-    } while( buffer[bytes-1] != '\n' );
-
-    return response;
-}
-
-
 void udp_request(int newfd, cache_t *c){
 	struct sockaddr_storage ext_addr;
 	socklen_t sin_size = sizeof(ext_addr);
@@ -202,7 +132,6 @@ void udp_request(int newfd, cache_t *c){
 		close(newfd);
 		exit(0);
 	}
-	// strcpy(out,process_request(c,recvdgrams(newfd,&ext_addr)));
 	strcpy(out,process_request(c,buffer));// need a better way of doing this lol
 
     if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)&ext_addr,sin_size) == -1){

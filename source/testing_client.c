@@ -30,43 +30,29 @@ struct cache_obj{
 
 int connect_tcp_server(cache_t cache){
     int sockfd;
-    struct addrinfo *p;
     char s[INET6_ADDRSTRLEN];
-    for(p = cache->tcpservinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
-        }
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("client: connect");
-            continue; 
-        }
-    break; }
-    if (p == NULL) {
-        fprintf(stderr, "client: failed to connect\n");
-        return 2;
+    if ((sockfd = socket(cache->tcpservinfo->ai_family, cache->tcpservinfo->ai_socktype,cache->tcpservinfo->ai_protocol)) == -1) {
+        printf("TCP client: Socket Error.\n");
+        exit(1);
     }
-    inet_ntop(p->ai_family, &(((struct sockaddr_in*)&p->ai_addr)->sin_addr), s, sizeof s);
+    if (connect(sockfd, cache->tcpservinfo->ai_addr, cache->tcpservinfo->ai_addrlen) == -1) {
+        close(sockfd);
+        perror("TCP client: Connect Error.\n");
+        exit(1);
+    }
+    inet_ntop(cache->tcpservinfo->ai_family, &(((struct sockaddr_in*)&cache->tcpservinfo->ai_addr)->sin_addr), s, sizeof s);
     printf("client: connecting to %s\n", s);
     return sockfd;
 }
 
 int connect_udp_server(cache_t cache){
     int sockfd;
-    struct addrinfo *p;
     char s[INET6_ADDRSTRLEN];
-    for(p = cache->udpservinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
-        }
-    break; }
-    if (p == NULL) {
-        fprintf(stderr, "client: failed to connect\n");
-        return 2;
+    if ((sockfd = socket(cache->udpservinfo->ai_family, cache->udpservinfo->ai_socktype,cache->udpservinfo->ai_protocol)) == -1) {
+        printf("UDP client: Socket Error.\n");
+        exit(1);
     }
-    inet_ntop(p->ai_family, &(((struct sockaddr_in*)&p->ai_addr)->sin_addr), s, sizeof s);
+    inet_ntop(cache->udpservinfo->ai_family, &(((struct sockaddr_in*)&cache->udpservinfo->ai_addr)->sin_addr), s, sizeof s);
     printf("client: connecting to %s\n", s);
     return sockfd; 
 }
@@ -82,7 +68,7 @@ char * send_rec_tcp(int sockfd, char* buf){
     int rec_len;
     memset(&buffer, '\0', sizeof(buffer));
     if ((rec_len =recv(sockfd, buffer, BUFFSIZE-1, 0)) == -1){
-        printf("receive error\n");
+        printf("TCP client: receive error\n");
         close(sockfd);
         exit(1);
     }
@@ -92,8 +78,7 @@ char * send_rec_tcp(int sockfd, char* buf){
 }
 
 char * send_rec_udp(int sockfd, char* buf,cache_t cache){
-    struct addrinfo *p;
-    p = cache->udpservinfo;
+    struct addrinfo * p = cache->udpservinfo;
     int numbytes;
     if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,p->ai_addr,p->ai_addrlen)) == -1) {
         perror("");
@@ -103,7 +88,7 @@ char * send_rec_udp(int sockfd, char* buf,cache_t cache){
     int rec_len;
     memset(&buffer, '\0', sizeof(buffer));
     if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,p->ai_addr,&p->ai_addrlen)) == -1){
-        printf("receive error\n");
+        printf("UPD client: receive error\n");
         close(sockfd);
         exit(1);
     }
