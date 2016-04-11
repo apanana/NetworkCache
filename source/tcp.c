@@ -3,17 +3,32 @@
 #define BUFFSIZE 100
 
 char * receive_tcp(int newfd){
-	int rec_len;
-	char * buffer[BUFFSIZE];
+	int rec_len, 
+		total = 0,
+		resp_len = BUFFSIZE;
+	char buffer[BUFFSIZE];
 	memset(buffer, '\0', sizeof(buffer));
-	if ((rec_len =recv(newfd, buffer, BUFFSIZE-1, 0)) == -1){
-		printf("receive error\n");
-		close(newfd);
-		exit(1);
+	char * response = calloc(resp_len,1);
+	char * temp;
+	do{
+		if ((rec_len =recv(newfd, buffer, BUFFSIZE, 0)) == -1){
+			printf("receive error\n");
+			close(newfd);
+			exit(1);
+		}
+		if (rec_len + total > resp_len){
+			temp = calloc(resp_len + BUFFSIZE,1);
+			memcpy(temp,response,resp_len);
+			free(response);
+			response = temp;
+			resp_len = resp_len + rec_len;
+		}
+		strcat(response,buffer);
+		total = total + rec_len;
 	}
-	buffer[rec_len] = '\0';
-	printf("Recieved request: %s\n",buffer);
-	return buffer;
+	while(buffer[rec_len-1]!='\n');
+	printf("Recieved request: %s\n",response);
+	return response;	
 }
 
 void response_tcp(char * out,int newfd){
@@ -50,6 +65,7 @@ int setup_tcp(char * TCPPORT){
 	}
     if ((tcp_fd = socket(servinfo->ai_family, servinfo->ai_socktype,servinfo->ai_protocol)) == -1) {
 		printf("TCP setup: socket error\n");
+		close(tcp_fd);
 		freeaddrinfo(servinfo);
 		exit(1);
 	}
@@ -67,7 +83,7 @@ int setup_tcp(char * TCPPORT){
 		freeaddrinfo(servinfo);
 		exit(1);
 	}
-	freeaddrinfo(servinfo); // Don't need this anymore 
+	freeaddrinfo(servinfo);
     if (listen(tcp_fd, 10) == -1) {
         printf("TCP setup: listen error\n");
         close(tcp_fd);     

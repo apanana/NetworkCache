@@ -94,10 +94,7 @@ char * send_rec_tcp(int sockfd, char* buf){
 char * send_rec_udp(int sockfd, char* buf,cache_t cache){
     struct addrinfo *p;
     p = cache->udpservinfo;
-    struct sockaddr_storage ext_addr;
-    socklen_t sin_size = sizeof(ext_addr);
     int numbytes;
-    // if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,(struct sockaddr_in*)&ext_addr,sin_size)) == -1) {
     if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,p->ai_addr,p->ai_addrlen)) == -1) {
         perror("");
         exit(1);
@@ -105,7 +102,6 @@ char * send_rec_udp(int sockfd, char* buf,cache_t cache){
     char * buffer[BUFFSIZE];
     int rec_len;
     memset(&buffer, '\0', sizeof(buffer));
-    // if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,(struct sockaddr_in*)&ext_addr,&sin_size)) == -1){
     if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,p->ai_addr,&p->ai_addrlen)) == -1){
         printf("receive error\n");
         close(sockfd);
@@ -141,7 +137,9 @@ uint64_t size_from_head(char * head){
     return out;
 }
 
-
+////////////////////////////////////////////////////////////////////////
+// CACHE FUNCTIONS
+//
 cache_t create_cache(uint64_t maxmem, hash_func hash){
     cache_t c = calloc(1,sizeof(struct cache_obj));
     extern char * TCPPORT;

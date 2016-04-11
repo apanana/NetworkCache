@@ -13,7 +13,5 @@
 #include "request.h"
 #include "cache.h"
 
-#define BUFFSIZE 100
-
 int setup_tcp(char * TCPPORT);
 void tcp_request(int newfd, cache_t *c);

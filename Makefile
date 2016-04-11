@@ -6,7 +6,7 @@ CFLAGS  = -D NDEBUG -O0 -g -w -std=c99
 
 SOURCE = source/
 
-TEST_FILES = test_src/basic_test.c test_src/lrutests.c test_src/main.c test_src/test.c test_src/test_helper.c test_src/testing_client.c
+TEST_FILES = test_src/basic_test.c test_src/lrutests.c test_src/main.c test_src/test.c test_src/test_helper.c source/testing_client.c
 SERVER_FILES = source/lru.c source/cache.c source/server.c source/tcp.c source/udp.c source/request.c
 
 RM = rm -rf
