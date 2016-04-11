@@ -2,7 +2,48 @@
 
 #define MAXLINE 100
 
-int setup_udp(char * UDPPORT){
+struct cache_obj{
+    char * host;
+    char * tcpport;
+    char * udpport;
+    struct addrinfo * tcpservinfo;
+    struct addrinfo * udpservinfo;
+};
+
+int connect_udp_server(cache_t cache){
+    int sockfd;
+    char s[INET6_ADDRSTRLEN];
+    if ((sockfd = socket(cache->udpservinfo->ai_family, cache->udpservinfo->ai_socktype,cache->udpservinfo->ai_protocol)) == -1) {
+        printf("UDP client: Socket Error.\n");
+        exit(1);
+    }
+    inet_ntop(cache->udpservinfo->ai_family, &(((struct sockaddr_in*)&cache->udpservinfo->ai_addr)->sin_addr), s, sizeof s);
+    printf("client: connecting to %s\n", s);
+    return sockfd; 
+}
+
+char * send_rec_udp(int sockfd, char* buf,cache_t cache){
+    int numbytes;
+    if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,cache->udpservinfo->ai_addr,cache->udpservinfo->ai_addrlen)) == -1) {
+        perror("");
+        exit(1);
+    }
+    char * buffer[BUFFSIZE];
+    int rec_len;
+    memset(&buffer, '\0', sizeof(buffer));
+    if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,cache->udpservinfo->ai_addr,&cache->udpservinfo->ai_addrlen)) == -1){
+        printf("UPD client: receive error\n");
+        close(sockfd);
+        exit(1);
+    }
+    buffer[rec_len] = '\0';
+    printf("Recieved response: %s\n",buffer);
+    return buffer;
+}
+
+
+
+int setup_udp_server(char * UDPPORT){
 	// Sets up a UDP socket and lets it listen for connections
 	int udp_fd,status;
 	struct addrinfo hints, *servinfo, *p;
@@ -38,8 +79,7 @@ int setup_udp(char * UDPPORT){
 	return udp_fd;
 }
 
-char * receive_udp(int newfd,struct sockaddr_storage * source){
-	socklen_t sin_size = sizeof(* source);
+char * receive_udp(int newfd,struct sockaddr_storage * source, socklen_t sin_size){
 	int rec_len, 
 		total = 0,
 		resp_len = BUFFSIZE;
@@ -76,25 +116,13 @@ char * receive_udp(int newfd,struct sockaddr_storage * source){
 	return response;	
 }
 
-// void response_udp(char * out,int newfd,struct sockaddr_storage * source,int sin_size){
-// 	// socklen_t sin_size = sizeof(* source);
-// 	if (out == NULL) exit(0);
-// 	printf("Sending response: %s\n",out);
-// 	printf("RESPONSE SIZE IS: %d\n",strlen(out));
-// 	printf("RESPONSE POINTER IS: %p\n",out);
-// 	printf("FD IS: %d\n",newfd);
-// 	printf("SEND 333;;;EXTADDR IS %p\n",source);
-// 	char buffer[strlen(out)-1];
-// 	strcpy(buffer,out);
-// 	printf("BUFFER IS: %s\n",buffer);
-// 	printf("BUFFER LENGTH IS; %d\n",strlen(buffer));
-//     // if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)source,sin_size) == -1){
-//     if (sendto(newfd, buffer, strlen(buffer), 0,(struct sockaddr_in*)source,sin_size) == -1){
-// 		printf("UDP: send error\n");
-//         close(newfd);
-//         exit(0);
-//     }
-// }
+void response_udp(char * out,int newfd,struct sockaddr_storage * source,int sin_size){
+    if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)source,sin_size) == -1){
+		printf("UDP: send error\n");
+        close(newfd);
+        exit(0);
+    }
+}
 
 // void udp_request(int newfd, cache_t *c){
 // 	struct sockaddr_storage ext_addr;
@@ -133,11 +161,6 @@ void udp_request(int newfd, cache_t *c){
 		exit(0);
 	}
 	strcpy(out,process_request(c,buffer));// need a better way of doing this lol
-
-    if (sendto(newfd, out, strlen(out), 0,(struct sockaddr_in*)&ext_addr,sin_size) == -1){
-		printf("send error\n");
-        close(newfd);
-        exit(0);
-        }
-
+	if (out == NULL) exit(0);
+	response_udp(out,newfd,&ext_addr,sin_size);
 }

@@ -16,5 +16,8 @@
 #define BACKLOG 10
 #define BUFFSIZE 100
 
-int setup_udp(char * UDPPORT);
+int setup_udp_server(char * UDPPORT);
 void udp_request(int newfd, cache_t *c);
+
+int connect_udp_server(cache_t cache);
+char * send_rec_udp(int sockfd, char* buf,cache_t cache);

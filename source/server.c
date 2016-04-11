@@ -56,8 +56,8 @@ int main(int argc, char *argv[]){
 
 	////////////////////////////////////////////////////////////////////////
 	// SETTING UP OUR SOCKETS	
-	int tcp_fd = setup_tcp(TCP);
-	int udp_fd = setup_udp(UDP);
+	int tcp_fd = setup_tcp_server(TCP);
+	int udp_fd = setup_udp_server(UDP);
 
 	fd_set readfds;
 	FD_ZERO(&readfds);
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]){
 			}
 			inet_ntop(ext_addr.ss_family, &(((struct sockaddr_in*)&ext_addr)->sin_addr), s, sizeof s);
 			printf("Server: Got connection from %s\n", s);
-			tcp_request(newfd,&c);
+			tcp_server_request(newfd,&c);
 			close(newfd);
 		}
 	}

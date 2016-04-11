@@ -6,8 +6,9 @@ CFLAGS  = -D NDEBUG -O0 -g -w -std=c99
 
 SOURCE = source/
 
-TEST_FILES = test_src/basic_test.c test_src/lrutests.c test_src/main.c test_src/test.c test_src/test_helper.c source/testing_client.c
-SERVER_FILES = source/lru.c source/cache.c source/server.c source/tcp.c source/udp.c source/request.c
+TEST_FILES = test_src/basic_test.c test_src/lrutests.c test_src/main.c test_src/test.c test_src/test_helper.c
+SERVER_FILES = source/lru.c source/cache.c source/tcp.c source/udp.c source/request.c source/server.c
+CLIENT_FILES = source/testing_client.c source/tcp.c source/udp.c source/request.c
 
 RM = rm -rf
 
@@ -24,7 +25,7 @@ makedirectclient:
 	$(CC) $(CFLAGS) $(SOURCE)direct_client.c -o out/dir_client
 
 maketestclient:
-	$(CC) $(CFLAGS) $(TEST_FILES) -o out/test_client
+	$(CC) $(CFLAGS) $(TEST_FILES) $(CLIENT_FILES) -o out/test_client
 
 runserver: out/server
 	./out/server $(ARG)

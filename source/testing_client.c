@@ -1,4 +1,3 @@
-#include "cache.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -14,6 +13,10 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 
+#include "cache.h"
+#include "tcp.h"
+#include "udp.h"
+
 #define BUFFSIZE 1000 // max number of bytes we can get at once
 
 char * TCPPORT = "3490";
@@ -27,75 +30,6 @@ struct cache_obj{
     struct addrinfo * tcpservinfo;
     struct addrinfo * udpservinfo;
 };
-
-int connect_tcp_server(cache_t cache){
-    int sockfd;
-    char s[INET6_ADDRSTRLEN];
-    if ((sockfd = socket(cache->tcpservinfo->ai_family, cache->tcpservinfo->ai_socktype,cache->tcpservinfo->ai_protocol)) == -1) {
-        printf("TCP client: Socket Error.\n");
-        exit(1);
-    }
-    if (connect(sockfd, cache->tcpservinfo->ai_addr, cache->tcpservinfo->ai_addrlen) == -1) {
-        close(sockfd);
-        perror("TCP client: Connect Error.\n");
-        exit(1);
-    }
-    inet_ntop(cache->tcpservinfo->ai_family, &(((struct sockaddr_in*)&cache->tcpservinfo->ai_addr)->sin_addr), s, sizeof s);
-    printf("client: connecting to %s\n", s);
-    return sockfd;
-}
-
-int connect_udp_server(cache_t cache){
-    int sockfd;
-    char s[INET6_ADDRSTRLEN];
-    if ((sockfd = socket(cache->udpservinfo->ai_family, cache->udpservinfo->ai_socktype,cache->udpservinfo->ai_protocol)) == -1) {
-        printf("UDP client: Socket Error.\n");
-        exit(1);
-    }
-    inet_ntop(cache->udpservinfo->ai_family, &(((struct sockaddr_in*)&cache->udpservinfo->ai_addr)->sin_addr), s, sizeof s);
-    printf("client: connecting to %s\n", s);
-    return sockfd; 
-}
-
-
-char * send_rec_tcp(int sockfd, char* buf){
-    int numbytes;
-    if ((numbytes = send(sockfd, buf, strlen(buf), 0)) == -1) {
-        perror("");
-        exit(1);
-    }
-    char * buffer[BUFFSIZE];
-    int rec_len;
-    memset(&buffer, '\0', sizeof(buffer));
-    if ((rec_len =recv(sockfd, buffer, BUFFSIZE-1, 0)) == -1){
-        printf("TCP client: receive error\n");
-        close(sockfd);
-        exit(1);
-    }
-    buffer[rec_len] = '\0';
-    printf("Recieved response: %s\n",buffer);
-    return buffer;
-}
-
-char * send_rec_udp(int sockfd, char* buf,cache_t cache){
-    struct addrinfo * p = cache->udpservinfo;
-    int numbytes;
-    if ((numbytes = sendto(sockfd, buf, strlen(buf), 0,p->ai_addr,p->ai_addrlen)) == -1) {
-        perror("");
-        exit(1);
-    }
-    char * buffer[BUFFSIZE];
-    int rec_len;
-    memset(&buffer, '\0', sizeof(buffer));
-    if ((rec_len =recvfrom(sockfd, buffer, BUFFSIZE-1, 0,p->ai_addr,&p->ai_addrlen)) == -1){
-        printf("UPD client: receive error\n");
-        close(sockfd);
-        exit(1);
-    }
-    buffer[rec_len] = '\0';
-    printf("Recieved response: %s\n",buffer);
-    return buffer;
-}
 
 char * val_from_json(char * json){
     strtok(json," ");
@@ -178,15 +112,15 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
 }
 
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
-    int sockfd = connect_udp_server(cache);
-    // int sockfd = connect_tcp_server(cache);
+    // int sockfd = connect_udp_server(cache);
+    int sockfd = connect_tcp_server(cache);
     char* buf[BUFFSIZE];
     memset(&buf,'\0',sizeof(buf));
     sprintf(buf,"GET /%s\n",key);
     char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec_udp(sockfd,buf,cache));
+    // strcpy(buffer,send_rec_udp(sockfd,buf,cache));
 
-    // strcpy(buffer,send_rec_tcp(sockfd,buf));
+    strcpy(buffer,send_rec_tcp(sockfd,buf));
 
     close(sockfd);
     if (strcmp(buffer,"404 Not Found!\n")==0){
