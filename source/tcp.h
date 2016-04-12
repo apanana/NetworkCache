@@ -13,8 +13,8 @@
 #include "request.h"
 #include "cache.h"
 
-int setup_tcp_server(char * TCPPORT);
+int tcp_server_setup(char * TCPPORT);
 void tcp_server_request(int newfd, cache_t *c);
 
 int connect_tcp_server(cache_t cache);
-char * send_rec_tcp(int sockfd, char* buf);
+char * tcp_client_request(int sockfd, char* buf);

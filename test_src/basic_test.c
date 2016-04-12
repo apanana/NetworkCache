@@ -57,6 +57,8 @@ bool get_size_test(){
 	void * out = cache_get(c,k,&size);
     destroy_cache(c);
     if (size != strlen(v)){
+        printf("Size: %d\n",size);
+        printf("Value: %s<-\n",out);
         // printf("wrong size\n");
         // need this or compiler does smth strange on -O2
         return false;

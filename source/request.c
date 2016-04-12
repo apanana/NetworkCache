@@ -7,12 +7,9 @@ char * get_request(cache_t c, char *buff){
 	val_type out = cache_get(c,k,&size);
 	space = cache_space_used(c);
 	if (out!=NULL){
-		char * json = calloc(1024,1);
-		strcat(json,"{key: ");
-		strcat(json,(const char*)k);
-		strcat(json,", value: ");
-		strcat(json,(char *)out);
-		strcat(json,"}");
+		int json_len = strlen(k)+strlen(out)+20;
+		char * json = calloc(json_len,1);
+		sprintf(json,"{key: %s, value: %s}\n",k,out);
 		return json;
 	}
 	else return "404 Not Found!\n";
@@ -21,9 +18,6 @@ char * get_request(cache_t c, char *buff){
 char * put_request(cache_t c, char * buff){
 	key_type k = strtok(NULL,"/");
 	val_type v = strtok(NULL,"/");
-	// printf("KEY: %s\n",k);
-	// printf("VAL???: %s\n",v);
-	// printf("LENGTH OF VAL? %d\n",strlen(v));
 	cache_set(c,k,v,strlen(v)+1);
 	return "201 Created\n";
 }

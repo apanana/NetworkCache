@@ -14,13 +14,10 @@
 #include "tcp.h"
 #include "udp.h"
 
-#define BACKLOG 10
-#define BUFFSIZE 100
-
 int main(int argc, char *argv[]){
 	char * TCP = "3490";
 	char * UDP = "4590";
-	int MAXMEM = 1000;
+	int MAXMEM = 10000;
 	////////////////////////////////////////////////////////////////////////
 	// PARSING COMMAND LINE INPUTS
 	// Get maxmem and portnum from command line
@@ -56,8 +53,8 @@ int main(int argc, char *argv[]){
 
 	////////////////////////////////////////////////////////////////////////
 	// SETTING UP OUR SOCKETS	
-	int tcp_fd = setup_tcp_server(TCP);
-	int udp_fd = setup_udp_server(UDP);
+	int tcp_fd = tcp_server_setup(TCP);
+	int udp_fd = udp_server_setup(UDP);
 
 	fd_set readfds;
 	FD_ZERO(&readfds);
@@ -68,14 +65,13 @@ int main(int argc, char *argv[]){
 	// Getting server ready for a connection
 	int newfd;
 	struct sockaddr_storage ext_addr;
-	socklen_t sin_size;
+	socklen_t sin_size = sizeof(ext_addr);
 	char s[INET6_ADDRSTRLEN];
-	sin_size = sizeof(ext_addr);
 
 	cache_t c = create_cache(MAXMEM,NULL);
 
 	////////////////////////////////////////////////////////////////////////
-	// Loop maintains connection until it receives a "POST /shutdown" request.
+	// Loops waiting for incoming connections
 	while (true){
 		printf("Server: Waiting for a connection...\n");
 		FD_SET(tcp_fd, &readfds);
@@ -87,7 +83,7 @@ int main(int argc, char *argv[]){
 		}
 		if(FD_ISSET(udp_fd,&readfds))
 		{	
-			udp_request(udp_fd,&c);
+			udp_server_request(udp_fd,&c);
 		}
 		if(FD_ISSET(tcp_fd, &readfds))
 		{

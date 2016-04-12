@@ -17,8 +17,6 @@
 #include "tcp.h"
 #include "udp.h"
 
-#define BUFFSIZE 1000 // max number of bytes we can get at once
-
 char * TCPPORT = "3490";
 char * UDPPORT = "4590";
 char * HOST = NULL;
@@ -35,11 +33,9 @@ char * val_from_json(char * json){
     strtok(json," ");
     strtok(NULL," ");
     strtok(NULL," ");
-    char * val[BUFFSIZE];
-    strcpy(val,strtok(NULL,"{"));
-    char* out[strlen(val)];
-    memset(&out,'\0',sizeof(out));
-    strncpy(out,val,strlen(val)-1);
+    char * val = strtok(NULL," ");
+    char * out = calloc(strlen(val)-1,1);
+    strncpy(out,val,strlen(val)-2);
     return out;
 }
 
@@ -50,7 +46,8 @@ uint64_t size_from_head(char * head){
     strtok(NULL,"\n");
     strtok(NULL,"\n");
     strtok(NULL," ");
-    char * val[BUFFSIZE];
+    // I dont expect the size to be something crazy huge, 1E30 is pretty darn big.
+    char * val[30];
     strcpy(val,strtok(NULL,"\n"));
     uint64_t out = strtoll(val,(char **)NULL,10);
     return out;
@@ -69,6 +66,7 @@ cache_t create_cache(uint64_t maxmem, hash_func hash){
     c->udpport = UDPPORT;
     c->tcpservinfo = calloc(1,sizeof(struct addrinfo));
     c->udpservinfo = calloc(1,sizeof(struct addrinfo));
+
     // Getting address info and setting it into c->tcpservinfo
     struct addrinfo hints;
     int status;
@@ -90,70 +88,66 @@ cache_t create_cache(uint64_t maxmem, hash_func hash){
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(1);
     }
+
     //connecting to server and sending a request to POST /memsize/maxmem
     int sockfd = connect_tcp_server(c);
-    char* buf[BUFFSIZE];
-    memset(&buf,'\0',sizeof(buf));
-    sprintf(&buf,"POST /memsize/%u\n",maxmem);
-    char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec_tcp(sockfd,buf));
+    char * request[50];
+    memset(&request,'\0',sizeof(request));
+    sprintf(request,"POST /memsize/%u\n",maxmem);
+    tcp_client_request(sockfd,request);
     close(sockfd);
     return c;
 }
 
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size){
     int sockfd = connect_tcp_server(cache);
-    char* buf[BUFFSIZE];
-    memset(&buf,'\0',sizeof(buf));
-    sprintf(buf,"PUT /%s/%s\n",key,val);
-    char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec_tcp(sockfd,buf));
+    int req_len = 10 + strlen(key) + strlen(key);
+    char * request[req_len];
+    memset(&request,'\0',sizeof(request));
+    sprintf(request,"PUT /%s/%s\n",key,val);
+    tcp_client_request(sockfd,request);
     close(sockfd);
 }
 
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size){
-    // int sockfd = connect_udp_server(cache);
-    int sockfd = connect_tcp_server(cache);
-    char* buf[BUFFSIZE];
-    memset(&buf,'\0',sizeof(buf));
-    sprintf(buf,"GET /%s\n",key);
-    char * buffer[BUFFSIZE];
-    // strcpy(buffer,send_rec_udp(sockfd,buf,cache));
+    int sockfd = connect_udp_server(cache);
+    // int sockfd = connect_tcp_server(cache);
+    int req_len = 10 + strlen(key);
+    char *request = calloc(req_len,10);
+    sprintf(request,"GET /%s\n",key);
+    char * response = udp_client_request(sockfd,request,cache);
+    // char * response = tcp_client_request(sockfd,request);
 
-    strcpy(buffer,send_rec_tcp(sockfd,buf));
-
-    close(sockfd);
-    if (strcmp(buffer,"404 Not Found!\n")==0){
+    if (strcmp(response,"404 Not Found!\n")==0){
         return NULL;
     }
-    val_type v = val_from_json(buffer);
+    val_type v = val_from_json(response);
     *val_size = strlen(v);
+    free(request);
+    close(sockfd);
     return v;
 }
 
 void cache_delete(cache_t cache, key_type key){
     int sockfd = connect_tcp_server(cache);
-    char* buf[BUFFSIZE];
-    memset(&buf,'\0',sizeof(buf));
-    sprintf(buf,"DELETE /%s\n",key);
-    char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec_tcp(sockfd,buf));
-
+    int request_len = 10 + strlen(key);
+    char * request[request_len];
+    memset(&request,'\0',sizeof(request));
+    sprintf(request,"DELETE /%s\n",key);
+    tcp_client_request(sockfd,request);
     close(sockfd);
 }
 
 uint64_t cache_space_used(cache_t cache){
     int sockfd = connect_tcp_server(cache);
-    char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec_tcp(sockfd,"HEAD /k\n"));
+    char * response = tcp_client_request(sockfd,"HEAD /k\n");
     close(sockfd);
-    uint64_t out = size_from_head(buffer);
+    uint64_t out = size_from_head(response);
     return out;
 }
 
 void destroy_cache(cache_t cache){
     int sockfd = connect_tcp_server(cache);
-    char * buffer[BUFFSIZE];
-    strcpy(buffer,send_rec_tcp(sockfd,"POST /shutdown\n"));
+    tcp_client_request(sockfd,"POST /shutdown\n");
     close(sockfd);
 }

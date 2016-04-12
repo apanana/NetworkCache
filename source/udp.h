@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <time.h>
 // Parsing command line inputs
 #include <unistd.h>
 #include <errno.h>
@@ -13,11 +14,8 @@
 #include "request.h"
 #include "cache.h"
 
-#define BACKLOG 10
-#define BUFFSIZE 100
-
-int setup_udp_server(char * UDPPORT);
-void udp_request(int newfd, cache_t *c);
+int udp_server_setup(char * UDPPORT);
+void udp_server_request(int newfd, cache_t *c);
 
 int connect_udp_server(cache_t cache);
-char * send_rec_udp(int sockfd, char* buf,cache_t cache);
+char * udp_client_request(int sockfd, char* buf,cache_t cache);
